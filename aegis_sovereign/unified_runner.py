@@ -225,7 +225,7 @@ class UnifiedRunner:
                                 surface, session_id, statuses, integrity_reason,
                                 behaviour_features, transport_reasons)
         except Exception as exc:
-            logger.warning("Aegis plane failure on %s: %s", surface, exc)
+            logger.debug("Aegis plane failure on %s: %s", surface, exc)
             return self._failure_result(start, surface, session_id, route_policy, statuses, str(exc))
 
     async def assess_request_async(self, **kwargs: Any) -> AssessmentResult:
