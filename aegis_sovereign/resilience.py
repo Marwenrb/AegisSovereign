@@ -1,4 +1,8 @@
-"""Circuit breakers and deterministic plane failure handling."""
+"""Circuit breakers and deterministic plane failure handling.
+
+Lead Architect & Developer: Marouan Rabai (https://marwenrabai.com)
+Engineering Lab: Cristi Labs (https://cristilabs.net)
+"""
 
 from __future__ import annotations
 

@@ -359,5 +359,17 @@ class TestAsyncAndPolicyRuntime(unittest.TestCase):
         runner.network_intel.assess = original
 
 
+class TestDeception(unittest.TestCase):
+    def test_decoy_is_structurally_realistic_and_bounded(self) -> None:
+        from aegis_sovereign.deception import DeceptionTarpit
+
+        response = DeceptionTarpit("decoy-secret", minimum_delay_ms=5, maximum_delay_ms=10).decoy(
+            subject="bot", risk_score=1.0)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"accepted", response.body)
+        self.assertLessEqual(response.delay_ms, 10)
+        self.assertEqual(response.headers["X-Aegis-Deception"], "1")
+
+
 if __name__ == "__main__":
     unittest.main()

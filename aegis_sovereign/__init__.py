@@ -100,6 +100,7 @@ from .state import (
     stable_bucket,
 )
 from .edge_server import EdgeDecisionHandler, EdgeDecisionServer, serve_edge
+from .deception import DeceptionResponse, DeceptionTarpit, generate_decoy_response
 
 __all__ = [
     "__version__",
@@ -170,4 +171,7 @@ __all__ = [
     "WindowSnapshot",
     "prefix_for_ip",
     "stable_bucket",
+    "DeceptionResponse",
+    "DeceptionTarpit",
+    "generate_decoy_response",
 ]

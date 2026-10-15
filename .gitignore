@@ -1,16 +1,98 @@
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+*$py.class
 *.pyc
+*.pyo
+*.pyd
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+.env
+.venv
 .venv/
 venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Unit test / coverage reporting
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Type checking & linting
+.mypy_cache/
+.pyre/
+.pytype/
+.ruff_cache/
+
+# Databases, local data, and secrets
 instance/
 *.db
+*.sqlite
 *.sqlite3
 *.mmdb
-.env
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-dist/
-build/
-*.egg-info/
+.env.local
+.env.*.local
+*.pem
+*.key
+*.cert
+
+# Logs and databases
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.project
+.pydevproject
+.settings/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

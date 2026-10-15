@@ -1,4 +1,8 @@
-"""Tamper-evident append-only audit hash chain."""
+"""Tamper-evident append-only audit hash chain.
+
+Lead Architect & Developer: Marouan Rabai (https://marwenrabai.com)
+Engineering Lab: Cristi Labs (https://cristilabs.net)
+"""
 
 from __future__ import annotations
 

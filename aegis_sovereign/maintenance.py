@@ -1,4 +1,8 @@
-"""Non-blocking maintenance loop for bounded state and key rotation."""
+"""Non-blocking maintenance loop for bounded state and key rotation.
+
+Lead Architect & Developer: Marouan Rabai (https://marwenrabai.com)
+Engineering Lab: Cristi Labs (https://cristilabs.net)
+"""
 
 from __future__ import annotations
 

@@ -219,6 +219,7 @@ class PopulationRarity:
         self._lock = _th.RLock()
         self._freq: Dict[str, int] = {}
         self._last_seen: Dict[str, float] = {}
+        self._last_prune = 0.0
 
     def register(self, fingerprint_id: str, now: float) -> None:
         with self._lock:
@@ -239,6 +240,9 @@ class PopulationRarity:
         return 0.02 * (100 - count) / 100.0
 
     def _prune_locked(self, now: float) -> None:
+        if len(self._freq) <= self.max_entries and now - self._last_prune < 1.0:
+            return
+        self._last_prune = now
         stale = [k for k, ts in self._last_seen.items() if now - ts > self.anomaly_window * 86400.0]
         for k in stale:
             self._freq.pop(k, None)

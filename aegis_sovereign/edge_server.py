@@ -1,4 +1,8 @@
-"""Universal zero-dependency HTTP JSON-RPC edge decision sidecar."""
+"""Universal zero-dependency HTTP JSON-RPC edge decision sidecar.
+
+Lead Architect & Developer: Marouan Rabai (https://marwenrabai.com)
+Engineering Lab: Cristi Labs (https://cristilabs.net)
+"""
 
 from __future__ import annotations
 

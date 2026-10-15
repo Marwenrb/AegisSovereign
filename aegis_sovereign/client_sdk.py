@@ -1,4 +1,8 @@
-"""Vanilla browser client snippet generator for Aegis challenges."""
+"""Vanilla browser client snippet generator for Aegis challenges.
+
+Lead Architect & Developer: Marouan Rabai (https://marwenrabai.com)
+Engineering Lab: Cristi Labs (https://cristilabs.net)
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,8 @@
-"""Deterministic behavioural and human-kinematics feature extraction (P4/P6)."""
+"""Deterministic behavioural and human-kinematics feature extraction (P4/P6).
+
+Lead Architect & Developer: Marouan Rabai (https://marwenrabai.com)
+Engineering Lab: Cristi Labs (https://cristilabs.net)
+"""
 
 from __future__ import annotations
 

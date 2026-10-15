@@ -1,4 +1,8 @@
-"""Stateless HMAC-signed proof-of-work challenges (P8)."""
+"""Stateless HMAC-signed proof-of-work challenges (P8).
+
+Lead Architect & Developer: Marouan Rabai (https://marwenrabai.com)
+Engineering Lab: Cristi Labs (https://cristilabs.net)
+"""
 
 from __future__ import annotations
 
