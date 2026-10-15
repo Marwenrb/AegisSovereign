@@ -42,13 +42,18 @@ class RiskEngine:
         graph_score: float = 0.0,
         behaviour_score: float = 0.0,
         hard_gate_blocked: bool = False,
+        transport_score: Optional[float] = None,
+        client_score_override: Optional[float] = None,
+        route_policy: Optional[RoutePolicy] = None,
+        evidence: Optional[Dict[str, Any]] = None,
     ) -> Decision:
         network = network or NetworkIntel(remote_ip="")
         client_signals = client_signals or ClientSignals()
 
         net_score = network.reputation_score
-        transport_score = net_score
-        client_score = self._client_score(client_signals)
+        transport_score = net_score if transport_score is None else max(0.0, min(1.0, transport_score))
+        client_score = self._client_score(client_signals) if client_score_override is None else max(0.0, min(1.0, client_score_override))
+        policy = route_policy or self.route_policy
 
         identity_score = max(0.0, min(1.0, identity_score))
         behaviour_score = max(0.0, min(1.0, behaviour_score))
@@ -71,10 +76,10 @@ class RiskEngine:
                     "behaviour": behaviour_score,
                     "graph": graph_score,
                 },
-                evidence={},
-                latency_ms=0.0,
-                cost_assessment={"expected_loss": score * self.route_policy.loss_usd},
-            )
+                    evidence=dict(evidence or {}),
+                    latency_ms=0.0,
+                    cost_assessment={"expected_loss": score * policy.loss_usd},
+                )
 
         fused, lens, _ = self.ensemble.fuse(
             self.ensemble.make_family("network", net_score),
@@ -85,8 +90,13 @@ class RiskEngine:
             self.ensemble.make_family("graph", graph_score),
             route=surface,
         )
-        score = fused
-        decision = self._route_decision(score)
+        synergy = 0.0
+        if net_score >= 0.7 and transport_score >= 0.7 and behaviour_score >= 0.7:
+            synergy += 0.12
+        if network.is_datacenter and client_signals.webdriver:
+            synergy += 0.08
+        score = min(0.9999, fused + synergy)
+        decision = self._route_decision(score, policy)
         reasons = RiskEngine._reasons(network, client_signals, score, decision)
         return Decision(
             decision=decision,
@@ -94,9 +104,9 @@ class RiskEngine:
             route=surface,
             reasons=reasons,
             family_scores={e.family: e.score for e in lens},
-            evidence={},
+            evidence=dict(evidence or {"synergy": round(synergy, 4)}),
             latency_ms=0.0,
-            cost_assessment={"expected_loss": score * self.route_policy.loss_usd},
+            cost_assessment={"expected_loss": score * policy.loss_usd},
         )
 
     def _client_score(self, signals: Optional[ClientSignals]) -> float:
@@ -110,8 +120,8 @@ class RiskEngine:
             return 0.15
         return max(0.0, min(1.0, 1.0 - composite))
 
-    def _route_decision(self, score: float) -> str:
-        policy = self.route_policy
+    def _route_decision(self, score: float, policy: Optional[RoutePolicy] = None) -> str:
+        policy = policy or self.route_policy
         if score >= 0.85:
             return "block"
         if score >= 0.30:

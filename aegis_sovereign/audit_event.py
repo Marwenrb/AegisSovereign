@@ -46,7 +46,7 @@ FAMILY_ORDER = [
 DEFAULT_ENTROPY_BUDGET_BITS = 256.0
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class AuditEvent:
     """A single, immutable audit record."""
 
@@ -65,6 +65,8 @@ class AuditEvent:
     latency_ms: float = 0.0
     entropy_bits: float = 0.0
     source: str = "aegis_sovereign"
+    previous_event_hash: str = ""
+    event_hash: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -81,4 +83,6 @@ class AuditEvent:
             "latency_ms": self.latency_ms,
             "entropy_bits": round(self.entropy_bits, 3),
             "source": self.source,
+            "previous_event_hash": self.previous_event_hash,
+            "event_hash": self.event_hash,
         }

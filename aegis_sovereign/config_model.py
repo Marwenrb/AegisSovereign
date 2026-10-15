@@ -20,7 +20,7 @@ _DEFAULT_GEO = os.path.join(os.path.dirname(__file__), "..", "data", "GeoLite2-C
 _DEFAULT_ASN = os.path.join(os.path.dirname(__file__), "..", "data", "GeoLite2-ASN.mmdb")
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class SecurityConfig:
     """Aggregates every configuration slice into one immutable object."""
 
@@ -102,6 +102,14 @@ class SecurityConfig:
     biometric_special_category_consent_gathered: bool = field(default=False)
     raw_signal_retention_hours: int = field(default=24)
     derived_feature_retention_days: int = field(default=90)
+    plane_timeout_ms: float = field(default=0.75)
+    circuit_failure_threshold: int = field(default=3)
+    circuit_reset_seconds: float = field(default=5.0)
+    replay_cache_entries: int = field(default=100_000)
+    maintenance_interval_seconds: float = field(default=30.0)
+    telemetry_max_events: int = field(default=50_000)
+    pow_min_difficulty: int = field(default=14)
+    pow_max_difficulty: int = field(default=28)
 
     def __post_init__(self) -> None:
         if not 0.0 <= float(self.fail_open_threshold) <= 1.0:
@@ -119,6 +127,14 @@ class SecurityConfig:
             raise ValueError("biometric_assurance_level unknown")
         if not 0.0 <= float(self.deception_confidence_threshold) <= 1.0:
             raise ValueError("deception_confidence_threshold must be in [0.0, 1.0]")
+        if float(self.plane_timeout_ms) <= 0.0:
+            raise ValueError("plane_timeout_ms must be positive")
+        if int(self.circuit_failure_threshold) <= 0:
+            raise ValueError("circuit_failure_threshold must be positive")
+        if int(self.replay_cache_entries) <= 0:
+            raise ValueError("replay_cache_entries must be positive")
+        if int(self.pow_min_difficulty) <= 0 or int(self.pow_max_difficulty) < int(self.pow_min_difficulty):
+            raise ValueError("invalid proof-of-work difficulty bounds")
 
     def to_dict(self, redact_secrets: bool = True) -> Dict[str, Any]:
         data: Dict[str, Any] = {}
@@ -168,6 +184,9 @@ class SecurityConfig:
             "data_minimisation_enabled",
             "biometric_special_category_consent_gathered",
             "raw_signal_retention_hours", "derived_feature_retention_days",
+            "plane_timeout_ms", "circuit_failure_threshold", "circuit_reset_seconds",
+            "replay_cache_entries", "maintenance_interval_seconds", "telemetry_max_events",
+            "pow_min_difficulty", "pow_max_difficulty",
         ):
             data[fname] = getattr(self, fname)
         return data
@@ -254,6 +273,14 @@ class SecurityConfig:
             biometric_special_category_consent_gathered=_b(src, "BIO_CONSENT", False),
             raw_signal_retention_hours=_i(src, "RAW_RETENTION_H", 24),
             derived_feature_retention_days=_i(src, "FEAT_RETENTION_D", 90),
+            plane_timeout_ms=_f(src, "PLANE_TIMEOUT_MS", 0.75),
+            circuit_failure_threshold=_i(src, "CIRCUIT_FAILURE_THRESHOLD", 3),
+            circuit_reset_seconds=_f(src, "CIRCUIT_RESET_SECONDS", 5.0),
+            replay_cache_entries=_i(src, "REPLAY_CACHE_ENTRIES", 100_000),
+            maintenance_interval_seconds=_f(src, "MAINTENANCE_INTERVAL_SECONDS", 30.0),
+            telemetry_max_events=_i(src, "TELEMETRY_MAX_EVENTS", 50_000),
+            pow_min_difficulty=_i(src, "POW_MIN_DIFFICULTY", 14),
+            pow_max_difficulty=_i(src, "POW_MAX_DIFFICULTY", 28),
         )
         return cls(**kw)
 

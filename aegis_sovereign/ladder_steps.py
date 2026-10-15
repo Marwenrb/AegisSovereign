@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class LadderStep:
     """One rung of the response ladder."""
 
@@ -26,7 +26,7 @@ class LadderStep:
         }
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class ResponsePlan:
     """A full graduated response, per risk score."""
 

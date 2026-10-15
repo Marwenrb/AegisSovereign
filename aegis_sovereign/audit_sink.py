@@ -13,9 +13,11 @@ import statistics
 import threading
 import uuid
 from collections import deque
+from dataclasses import replace
 from typing import Any, Deque, Dict, List, Optional
 
 from .audit_event import AuditEvent, FAMILY_ORDER
+from .audit_chain import MerkleAuditChain
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +26,7 @@ class _NoOpSink:
     """Trivial sink that discards everything. The always-available default."""
 
     def emit(self, event: AuditEvent) -> None:
-        pass
+        return None
 
     def snapshot(self) -> Dict[str, Any]:
         return {"sink": "noop"}
@@ -117,6 +119,23 @@ class InMemorySink:
             self._scores.clear()
             self._latencies.clear()
 
+    def openmetrics(self) -> str:
+        """Return a dependency-free OpenMetrics text exposition."""
+        snapshot = self.snapshot()
+        lines = [
+            "# HELP aegis_events_total Security decisions retained",
+            "# TYPE aegis_events_total counter",
+            f"aegis_events_total {snapshot['events']}",
+        ]
+        for family, counts in snapshot["family_decisions"].items():
+            for decision in ("allow", "challenge", "stepup", "throttle", "block"):
+                lines.append(f'aegis_verdicts_total{{plane="{family}",decision="{decision}"}} {counts[decision]}')
+        for quantile in ("p50", "p95", "p99"):
+            value = snapshot.get(f"latency_{quantile}_ms")
+            if value is not None:
+                lines.append(f'aegis_latency_ms{{quantile="{quantile[1:] if quantile.startswith("p") else quantile}"}} {value}')
+        return "\n".join(lines) + "\n"
+
 
 class _HashingContext:
     """Hash-based pseudonymiser so raw identifiers never touch log lines."""
@@ -143,25 +162,30 @@ class Telemetry:
         self._ctx = _HashingContext() if pseudonymise else None
         self._entropy = entropy_budget_bits
         self._log = logging.getLogger(logger_name)
+        self.audit_chain = MerkleAuditChain()
 
     def emit(self, event: AuditEvent) -> None:
-        event.entropy_bits = self._entropy
+        safe_evidence = event.evidence
         if self._ctx is not None:
             safe = copy.deepcopy(event.evidence)
             for fname in ("ip", "user_agent", "fingerprint", "token"):
                 val = safe.get(fname)
                 if val:
                     safe[fname] = self._ctx.hash(str(val))
-            event.evidence = safe
-        self._sink.emit(event)
+            safe_evidence = safe
+        chain_link = self.audit_chain.append(event.event_id, event.to_dict())
+        enriched = replace(event, entropy_bits=self._entropy, evidence=safe_evidence,
+                           previous_event_hash=chain_link.previous_hash,
+                           event_hash=chain_link.event_hash)
+        self._sink.emit(enriched)
         self._log.info(
             "AEGIS:%s|actor:%s|surface:%s|decision:%s|score:%s|reasons:%s",
-            event.event_id,
-            event.actor,
-            event.surface,
-            event.decision,
-            event.score,
-            ",".join(event.reasons) or "-",
+            enriched.event_id,
+            enriched.actor,
+            enriched.surface,
+            enriched.decision,
+            enriched.score,
+            ",".join(enriched.reasons) or "-",
         )
 
     def snapshot(self) -> Dict[str, Any]:
@@ -169,4 +193,14 @@ class Telemetry:
 
     def clear(self) -> None:
         self._sink.clear()
+
+    def export_openmetrics(self) -> str:
+        exporter = getattr(self._sink, "openmetrics", None)
+        if exporter is None:
+            return "# TYPE aegis_events_total counter\naegis_events_total 0\n"
+        return str(exporter())
+
+    @property
+    def merkle_root(self) -> str:
+        return self.audit_chain.root()
 

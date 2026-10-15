@@ -43,6 +43,8 @@ ROUTE_LOSS_USD: Dict[str, float] = {
     "api_key_rotate": 1.00,
 }
 
+FAIL_CLOSED_PATTERNS = ("payout", "auth.login", "admin.", "signin", "withdrawal", "recovery")
+
 # Default loss when the route is unknown (a safe, moderate default).
 DEFAULT_ROUTE_LOSS_USD = 5.00
 
@@ -99,6 +101,17 @@ class RoutePolicy:
     enable_step_up: bool = field(default=True)
     enable_deception: bool = field(default=False)
 
+    @staticmethod
+    def for_surface(route: str) -> "RoutePolicy":
+        """Return the deterministic default policy for an arbitrary surface."""
+        closed = any(route == pattern or route.startswith(pattern) for pattern in FAIL_CLOSED_PATTERNS)
+        return RoutePolicy(route=route, loss_usd=ROUTE_LOSS_USD.get(route, DEFAULT_ROUTE_LOSS_USD),
+                           fail_open=not closed)
+
+    @property
+    def failure_mode(self) -> str:
+        return "FAIL_OPEN_OBSERVE" if self.fail_open else "FAIL_CLOSED"
+
     def intervention_threshold(self, score: float) -> bool:
         """True when the expected-loss rule says intervene on this route."""
         return cost_sensitive_threshold(
@@ -119,7 +132,7 @@ class RoutePolicy:
         return "allow"
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class Decision:
     """The full, machine-readable decision for one event."""
 

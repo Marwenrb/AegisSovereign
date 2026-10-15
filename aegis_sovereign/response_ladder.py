@@ -45,11 +45,14 @@ class ResponseLadder:
         self.pow_enabled = pow_enabled
 
     def plan_for(self, score: float, decided: str, *, route: str = "") -> ResponsePlan:
-        plan = ResponsePlan(decision=decided)
+        steps: List[LadderStep] = []
         reason_codes: List[str] = []
+        pow_difficulty = 0
+        step_up_required = False
+        tarpit_hold_ms = 0
 
         if decided == "block":
-            plan.plan.append(
+            steps.append(
                 LadderStep(
                     rung=6,
                     label="Block and ban",
@@ -58,11 +61,11 @@ class ResponseLadder:
                     reason="hard_gate_or_confirmed_abuse",
                 )
             )
-            plan.reason_codes.append("block")
-            return plan
+            reason_codes.append("block")
+            return ResponsePlan(decision=decided, plan=steps, reason_codes=reason_codes)
 
         if decided == "challenge":
-            plan.plan.append(
+            steps.append(
                 LadderStep(
                     rung=1,
                     label="Invisible challenge",
@@ -71,15 +74,15 @@ class ResponseLadder:
                     reason="token_check_or_privacy_pass",
                 )
             )
-            plan.reason_codes.append("challenge")
+            reason_codes.append("challenge")
 
         if self.pow_enabled and score > 0.5:
             difficulty = min(
                 POLY_MAX_DIFFICULTY,
                 max(POLY_MIN_DIFFICULTY, int(POLY_MIN_DIFFICULTY * (score * POLY_SCALE_FACTOR))),
             )
-            plan.pow_difficulty = difficulty
-            plan.plan.append(
+            pow_difficulty = difficulty
+            steps.append(
                 LadderStep(
                     rung=2,
                     label="Adaptive proof-of-work",
@@ -88,12 +91,12 @@ class ResponseLadder:
                     reason=f"pow_difficulty_{difficulty}",
                 )
             )
-            plan.reason_codes.append("pow")
+            reason_codes.append("pow")
 
         sensitive_route = route in self.step_up_actions
         if sensitive_route and score > 0.55:
-            plan.step_up_required = True
-            plan.plan.append(
+            step_up_required = True
+            steps.append(
                 LadderStep(
                     rung=3,
                     label="Step-up proof",
@@ -102,12 +105,12 @@ class ResponseLadder:
                     reason="step_up_on_sensitive_action",
                 )
             )
-            plan.reason_codes.append("stepup")
+            reason_codes.append("stepup")
 
         if decided == "throttle" or (score >= 0.7 and not sensitive_route):
             hold = int(100 + score * 400)
-            plan.tarpit_hold_ms = hold
-            plan.plan.append(
+            tarpit_hold_ms = hold
+            steps.append(
                 LadderStep(
                     rung=4,
                     label="Throttle or delay",
@@ -116,10 +119,10 @@ class ResponseLadder:
                     reason=f"tarpit_hold_{hold}ms",
                 )
             )
-            plan.reason_codes.append("tarpit")
+            reason_codes.append("tarpit")
 
         if score >= self.deception_threshold and self.block_hard_gates_only:
-            plan.plan.append(
+            steps.append(
                 LadderStep(
                     rung=5,
                     label="Controlled deception",
@@ -128,6 +131,8 @@ class ResponseLadder:
                     reason="controlled_deception",
                 )
             )
-            plan.reason_codes.append("deception")
+            reason_codes.append("deception")
 
-        return plan
+        return ResponsePlan(decision=decided, plan=steps, pow_difficulty=pow_difficulty,
+                            step_up_required=step_up_required, tarpit_hold_ms=tarpit_hold_ms,
+                            reason_codes=reason_codes)

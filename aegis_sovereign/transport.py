@@ -23,7 +23,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +163,38 @@ def http2_settings_fingerprint(settings: Dict[str, int]) -> str:
     ordered = sorted(settings.items())
     canonical = "|".join(f"{k}={v}" for k, v in ordered)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
+
+
+def http2_frame_fingerprint(frames: Sequence[Tuple[str, int, int]] = ()) -> str:
+    """Fingerprint HTTP/2 frame type, stream id and payload length sequence."""
+    canonical = "|".join(f"{kind}:{stream}:{length}" for kind, stream, length in frames)
+    return "H2" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
+
+
+def ja4h_fingerprint(method: str, path: str, header_order: Sequence[str]) -> str:
+    """Stable HTTP request fingerprint including header order and pseudo headers."""
+    canonical = "|".join((method.upper(), path, *[name.lower() for name in header_order]))
+    return "H4" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
+
+
+def transport_user_agent_consistency(ja4: JA4Hash, user_agent: str,
+                                     client_hints: str = "") -> Tuple[float, List[str]]:
+    """Cross-check browser claims against obvious library/headless traits."""
+    ua = (user_agent or "").lower()
+    hints = (client_hints or "").lower()
+    reasons: List[str] = []
+    score = 0.0
+    automation_markers = ("python-requests", "aiohttp", "curl/", "go-http-client", "headless")
+    if any(marker in ua for marker in automation_markers):
+        score += 0.8
+        reasons.append("transport_automation_ua")
+    if "windows" in ua and "h2" not in (ja4.alpn or []) and ja4.tls_version == "TLSv1.2":
+        score += 0.25
+        reasons.append("transport_browser_tls_contradiction")
+    if ("chrome" in ua or "edge" in ua) and "chrome" not in hints and hints:
+        score += 0.25
+        reasons.append("transport_client_hint_contradiction")
+    return min(1.0, score), reasons
 
 
 def quic_fingerprint(

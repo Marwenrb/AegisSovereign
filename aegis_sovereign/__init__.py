@@ -55,6 +55,7 @@ from .network_fixtures import (
     ResidentialGeoBackend,
 )
 from .unified import UnifiedRunner
+from .unified_runner import AsyncUnifiedRunner, AssessmentResult
 from .policy import RoutePolicy, Decision
 from .audit_event import AuditEvent, REASON_BITS, FAMILY_ORDER
 from .audit_sink import Telemetry, InMemorySink
@@ -73,6 +74,35 @@ from .ladder_steps import LadderStep, ResponsePlan
 from .response_ladder import ResponseLadder
 from .governance import Governance, Incidents
 from .transport import ja4_from_dict, quic_fingerprint
+from .pow import AegisPoW, PoWChallenge
+from .audit_chain import ChainLink, MerkleAuditChain
+from .state import ReplayNonceCache, ShardedTTLCache, SlidingWindow, prefix_for_ip
+from .client_sdk import ClientSDK, generate_client_sdk
+from .maintenance import AsyncMaintenanceManager, MaintenanceManager
+from .audit_chain import ChainLink, MerkleAuditChain
+from .behavior import (
+    SurfaceTransitionGraph,
+    behaviour_score,
+    dispersion_ratio,
+    fitts_compliance,
+    keystroke_risk,
+    kinematics_risk,
+    shannon_entropy,
+    timing_risk,
+    touch_risk,
+)
+from .client_sdk import ClientSDK, generate_client_sdk
+from .maintenance import AsyncMaintenanceManager, MaintenanceManager
+from .pow import AegisPoW, PoWChallenge
+from .resilience import CircuitBreaker, CircuitState
+from .state import (
+    ReplayNonceCache,
+    ShardedTTLCache,
+    SlidingWindow,
+    WindowSnapshot,
+    prefix_for_ip,
+    stable_bucket,
+)
 
 __all__ = [
     "__version__",
@@ -80,6 +110,8 @@ __all__ = [
     "SecurityConfig",
     "config_from_dict",
     "UnifiedRunner",
+    "AsyncUnifiedRunner",
+    "AssessmentResult",
     "GeoIP",
     "NetworkIntel",
     "NetworkIntelligence",
@@ -94,6 +126,18 @@ __all__ = [
     "SignedChallenge",
     "ja4_from_dict",
     "quic_fingerprint",
+    "AegisPoW",
+    "PoWChallenge",
+    "ChainLink",
+    "MerkleAuditChain",
+    "ReplayNonceCache",
+    "ShardedTTLCache",
+    "SlidingWindow",
+    "prefix_for_ip",
+    "ClientSDK",
+    "generate_client_sdk",
+    "MaintenanceManager",
+    "AsyncMaintenanceManager",
     "RiskEngine",
     "CalibratedEnsemble",
     "FamilyEvidence",
@@ -111,4 +155,29 @@ __all__ = [
     "Incidents",
     "BreachedCredentialScreen",
     "SessionBinder",
+    "ChainLink",
+    "MerkleAuditChain",
+    "SurfaceTransitionGraph",
+    "behaviour_score",
+    "dispersion_ratio",
+    "fitts_compliance",
+    "keystroke_risk",
+    "kinematics_risk",
+    "shannon_entropy",
+    "timing_risk",
+    "touch_risk",
+    "ClientSDK",
+    "generate_client_sdk",
+    "AsyncMaintenanceManager",
+    "MaintenanceManager",
+    "AegisPoW",
+    "PoWChallenge",
+    "CircuitBreaker",
+    "CircuitState",
+    "ReplayNonceCache",
+    "ShardedTTLCache",
+    "SlidingWindow",
+    "WindowSnapshot",
+    "prefix_for_ip",
+    "stable_bucket",
 ]

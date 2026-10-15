@@ -51,7 +51,7 @@ def _family_log_odds(score: float, weight: float) -> float:
     return raw * weight
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class FamilyEvidence:
     """A single evidence family's contribution to the fusion."""
 
@@ -86,13 +86,14 @@ class CalibratedEnsemble:
         route: str = "",
     ) -> tuple[float, List[FamilyEvidence], float]:
         total_log_odds = self.b0
+        resolved: List[FamilyEvidence] = []
         for fam in families:
             w = self.base_weights.get(fam.family, 0.0)
-            fam.weight = w
-            fam.log_odds = _family_log_odds(fam.score, w)
-            total_log_odds += fam.log_odds
+            contribution = _family_log_odds(fam.score, w)
+            total_log_odds += contribution
+            resolved.append(FamilyEvidence(fam.family, fam.score, dict(fam.features), contribution, w))
         calibrated = _calibrated_probability(total_log_odds)
-        return calibrated, list(families), total_log_odds
+        return calibrated, resolved, total_log_odds
 
     def make_family(self, name: str, score: float, features: dict | None = None) -> FamilyEvidence:
         return FamilyEvidence(family=name, score=score, features=features or {})

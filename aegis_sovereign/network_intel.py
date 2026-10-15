@@ -6,6 +6,7 @@ Engineering Lab: Cristi Labs (https://cristilabs.net)
 
 from __future__ import annotations
 
+import ipaddress
 import logging
 import socket
 import struct
@@ -25,6 +26,8 @@ PASSIVE_OS_SIGNATURES = {
 
 # Cloud / datacenter ASNs (strong risk prior on sensitive endpoints).
 DATA_CENTER_ASNS = {13335, 16509, 16623, 16631, 16881, 16884, 20940, 26496, 15169}
+MOBILE_ASNS = {28573, 21928, 31098, 3}
+TOR_EXIT_ASNS = {16509, 396507}
 
 
 @dataclass(slots=True)
@@ -54,6 +57,10 @@ class NetworkIntel:
     rtt_geography_consistent: bool = True
     reputation_score: float = 0.5
     risk_features: Dict[str, float] = field(default_factory=dict)
+    prefix: str = ""
+    asn_class: str = "unknown"
+    is_tor_exit: bool = False
+    is_residential_proxy: bool = False
 
 
 class _GeoIPBackend:
@@ -126,6 +133,7 @@ class NetworkIntelligence:
 
     def __init__(self, geo: Optional[GeoIP] = None):
         self.geo = geo if geo is not None else GeoIP()
+        self._prefix_seen: Dict[str, set[str]] = {}
 
     def assess(
         self,
@@ -147,6 +155,13 @@ class NetworkIntelligence:
         is_res = self.geo.is_residential(remote_ip)
         is_vpn = self.geo.is_vpn(remote_ip)
         is_shared = is_res or is_vpn or asn in DATA_CENTER_ASNS
+        prefix = self.prefix(remote_ip)
+        asn_class = self.classify_asn(asn, is_dc, is_res, is_vpn)
+        is_tor = asn in TOR_EXIT_ASNS
+        is_res_proxy = asn_class == "residential_proxy"
+        prior_ips = self._prefix_seen.setdefault(prefix, set())
+        prior_ips.add(remote_ip)
+        rotation = len(prior_ips) >= 4
 
         os_match = self._passive_os_match(claimed_os)
 
@@ -159,6 +174,12 @@ class NetworkIntelligence:
             rep = 0.12
         elif is_vpn:
             rep = 0.55
+        if is_tor:
+            rep = 0.95
+        elif is_res_proxy:
+            rep = min(0.9, rep + 0.35)
+        if rotation:
+            rep = min(1.0, rep + 0.2)
         if claimed_country and claimed_country != location.country:
             rep = min(0.95, rep + 0.25)
 
@@ -170,6 +191,9 @@ class NetworkIntelligence:
             "country_mismatch": 1.0 if claimed_country and claimed_country != location.country else 0.0,
             "passive_os_match": 1.0 if os_match else 0.0,
             "rtt_consistent": 1.0 if rtt_consistent else 0.0,
+            "rapid_prefix_rotation": 1.0 if rotation else 0.0,
+            "tor_exit": 1.0 if is_tor else 0.0,
+            "residential_proxy": 1.0 if is_res_proxy else 0.0,
         }
 
         return NetworkIntel(
@@ -187,7 +211,47 @@ class NetworkIntelligence:
             rtt_geography_consistent=rtt_consistent,
             reputation_score=rep,
             risk_features=feats,
+            prefix=prefix,
+            asn_class=asn_class,
+            is_tor_exit=is_tor,
+            is_residential_proxy=is_res_proxy,
         )
+
+    @staticmethod
+    def prefix(remote_ip: str) -> str:
+        try:
+            address = ipaddress.ip_address(remote_ip)
+            length = 24 if address.version == 4 else 64
+            return str(ipaddress.ip_network(f"{address}/{length}", strict=False))
+        except ValueError:
+            return "invalid/0"
+
+    @staticmethod
+    def classify_asn(asn: Optional[int], datacenter: bool, residential: bool, vpn: bool) -> str:
+        if asn in TOR_EXIT_ASNS:
+            return "tor_exit"
+        if residential and vpn:
+            return "residential_proxy"
+        if vpn:
+            return "vpn_proxy"
+        if datacenter or asn in DATA_CENTER_ASNS:
+            return "cloud_datacenter"
+        if asn in MOBILE_ASNS:
+            return "mobile_isp"
+        if residential:
+            return "residential"
+        return "unknown"
+
+    @staticmethod
+    def geo_timezone_language_consistent(network: NetworkIntel, timezone: str,
+                                         languages: Iterable[str]) -> bool:
+        values = list(languages)
+        if network.location.timezone and timezone and network.location.timezone != timezone:
+            return False
+        country = network.location.country.upper()
+        if not country or not values:
+            return True
+        return any(str(language).split("-")[0].upper() == country for language in values)
 
     def _passive_os_match(self, claimed_os: str) -> str:
         if not claimed_os:
