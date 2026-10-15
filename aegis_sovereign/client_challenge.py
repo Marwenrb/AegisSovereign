@@ -102,7 +102,11 @@ class SignedChallenge:
         payload = self._payload(session_id, tls_channel_id, subnet, scope, issued_at,
                                 expires_at, nonce, claims_hash, difficulty)
         signature = hmac.new(self._key(scope), payload.encode("utf-8"), hashlib.sha256).hexdigest()
-        token = f"{CHALLENGE_RESPONSE_PREFIX}.{session_id}.{issued_at}.{expires_at}.{nonce}.{claims_hash}.{signature}"
+        if difficulty:
+            token = (f"{CHALLENGE_RESPONSE_PREFIX}.{session_id}.{issued_at}.{expires_at}."
+                     f"{difficulty}.{nonce}.{claims_hash}.{signature}")
+        else:
+            token = f"{CHALLENGE_RESPONSE_PREFIX}.{session_id}.{issued_at}.{expires_at}.{nonce}.{claims_hash}.{signature}"
         return IntegrityToken(token, session_id, tls_channel_id, issued_at, expires_at,
                               signature, nonce, claims_hash, subnet, scope, int(difficulty))
 
@@ -112,14 +116,22 @@ class SignedChallenge:
                now: Optional[int] = None, buffer_seconds: int = 15,
                client_ip_subnet: str = "", surface_scope: str = "",
                client_ip: str = "", difficulty: int = 0,
-               replay_protected: bool = True) -> Tuple[bool, str]:
+               replay_protected: bool = True,
+               replay_cache: Optional[ReplayNonceCache] = None) -> Tuple[bool, str]:
         """Verify a token and atomically consume its nonce."""
         if not raw_token or not raw_token.startswith(CHALLENGE_RESPONSE_PREFIX + "."):
             return False, "invalid_prefix"
         parts = raw_token.split(".")
-        if len(parts) != 7:
+        if len(parts) not in (7, 8):
             return False, "invalid_format"
-        _, token_session, issued_text, expires_text, nonce, claims_hash, signature = parts
+        if len(parts) == 8:
+            _, token_session, issued_text, expires_text, difficulty_text, nonce, claims_hash, signature = parts
+            try:
+                difficulty = int(difficulty_text)
+            except ValueError:
+                return False, "invalid_difficulty"
+        else:
+            _, token_session, issued_text, expires_text, nonce, claims_hash, signature = parts
         if not hmac.compare_digest(token_session, session_id):
             return False, "session_mismatch"
         try:
@@ -140,7 +152,7 @@ class SignedChallenge:
             return False, "expired"
         if current < issued_at - int(buffer_seconds):
             return False, "not_yet_valid"
-        if replay_protected and not _REPLAY_CACHE.claim(nonce):
+        if replay_protected and not (replay_cache or _REPLAY_CACHE).claim(nonce):
             return False, "replay_detected"
         return True, "ok"
 
@@ -148,6 +160,7 @@ class SignedChallenge:
         """Instance convenience method using this service's replay cache."""
         kwargs.setdefault("secret_key", self.secret_key)
         kwargs.setdefault("buffer_seconds", self.buffer_seconds)
+        kwargs.setdefault("replay_cache", self._replay)
         return self.verify(raw_token, **kwargs)
 
     def _key(self, scope: str) -> bytes:

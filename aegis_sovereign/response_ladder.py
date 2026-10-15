@@ -51,6 +51,11 @@ class ResponseLadder:
         step_up_required = False
         tarpit_hold_ms = 0
 
+        if decided == "allow" and score < 0.30:
+            steps.append(LadderStep(rung=0, label="Observe", action="observe",
+                                    confidence=max(0.0, 1.0 - score), reason="low_risk_observe"))
+            reason_codes.append("observe")
+
         if decided == "block":
             steps.append(
                 LadderStep(

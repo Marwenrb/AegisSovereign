@@ -11,6 +11,7 @@ import hashlib
 import logging
 import statistics
 import threading
+import time
 import uuid
 from collections import deque
 from dataclasses import replace
@@ -77,9 +78,10 @@ class InMemorySink:
             if event.score >= self._min_score_for_stats:
                 self._scores.append(float(event.score))
             try:
-                self._latencies.append(float(event.latency_ms or 0.0))
+                latency = float(event.latency_ms or 0.0)
             except (TypeError, ValueError):
-                pass
+                latency = 0.0
+            self._latencies.append(latency)
 
     def snapshot(self) -> Dict[str, Any]:
         with self._lock:
@@ -141,10 +143,17 @@ class _HashingContext:
     """Hash-based pseudonymiser so raw identifiers never touch log lines."""
 
     def __init__(self, salt: str | None = None):
-        self._salt = salt or uuid.uuid4().hex
+        self._root = salt or uuid.uuid4().hex
+        self._epoch = int(time.time() // 86_400)
+
+    def rotate_if_needed(self) -> None:
+        epoch = int(time.time() // 86_400)
+        if epoch != self._epoch:
+            self._epoch = epoch
 
     def hash(self, value: str, length: int = 16) -> str:
-        digest = hashlib.sha256(f"{self._salt}:{value}".encode("utf-8")).hexdigest()
+        self.rotate_if_needed()
+        digest = hashlib.sha256(f"{self._root}:{self._epoch}:{value}".encode("utf-8")).hexdigest()
         return digest[:length]
 
 
@@ -164,7 +173,7 @@ class Telemetry:
         self._log = logging.getLogger(logger_name)
         self.audit_chain = MerkleAuditChain()
 
-    def emit(self, event: AuditEvent) -> None:
+    def emit(self, event: AuditEvent) -> AuditEvent:
         safe_evidence = event.evidence
         if self._ctx is not None:
             safe = copy.deepcopy(event.evidence)
@@ -187,6 +196,7 @@ class Telemetry:
             enriched.score,
             ",".join(enriched.reasons) or "-",
         )
+        return enriched
 
     def snapshot(self) -> Dict[str, Any]:
         return self._sink.snapshot()
@@ -203,4 +213,3 @@ class Telemetry:
     @property
     def merkle_root(self) -> str:
         return self.audit_chain.root()
-

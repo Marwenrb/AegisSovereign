@@ -29,7 +29,8 @@ dependencies = []
 Homepage = "https://cristilabs.net"
 Documentation = "https://cristilabs.net"
 Author = "https://marwenrabai.com"
-Repository = "https://github.com/cristilabs/aegis-sovereign"
+Repository = "https://github.com/Marwenrb/AegisSovereign"
+"Bug Tracker" = "https://github.com/Marwenrb/AegisSovereign/issues"
 
 [project.scripts]
 aegis-sovereign = "aegis_sovereign.cli:main"

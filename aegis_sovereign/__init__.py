@@ -103,6 +103,7 @@ from .state import (
     prefix_for_ip,
     stable_bucket,
 )
+from .edge_server import EdgeDecisionHandler, EdgeDecisionServer, serve_edge
 
 __all__ = [
     "__version__",
@@ -112,6 +113,9 @@ __all__ = [
     "UnifiedRunner",
     "AsyncUnifiedRunner",
     "AssessmentResult",
+    "EdgeDecisionHandler",
+    "EdgeDecisionServer",
+    "serve_edge",
     "GeoIP",
     "NetworkIntel",
     "NetworkIntelligence",

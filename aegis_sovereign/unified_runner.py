@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 from .audit_event import AuditEvent
@@ -79,6 +80,7 @@ class UnifiedRunner:
                                             hard_gates_enabled=self.config.enable_hard_gates)
         self.telemetry = telemetry or _Telemetry(sink=InMemorySink(max_events=self.config.telemetry_max_events))
         self.geo_backend = geo_backend or DatacenterGeoBackend()
+        self.network_intel = NetworkIntelligence(GeoIP(self.geo_backend))
         self.governance = governance or Governance()
         self.signed_challenge = SignedChallenge(
             secret_key=self.config.secret_key,
@@ -128,6 +130,7 @@ class UnifiedRunner:
                        touch_events: Sequence[Mapping[str, float]] = (),
                        keystroke_events: Sequence[Mapping[str, float]] = (),
                        client_hints: str = "", attack_pressure: float = 0.0,
+                       latitude: float = 0.0, longitude: float = 0.0,
                        transport_ciphers: Optional[List[str]] = None,
                        transport_extensions: Optional[List[str]] = None,
                        **extra: Any) -> AssessmentResult:
@@ -135,7 +138,7 @@ class UnifiedRunner:
         route_policy = RoutePolicy.for_surface(surface)
         statuses: Dict[str, str] = {name: "ok" for name in self.PLANE_NAMES}
         try:
-            network = self._plane("P1", lambda: NetworkIntelligence(GeoIP(self.geo_backend)).assess(
+            network = self._plane("P1", lambda: self.network_intel.assess(
                 remote_ip, claimed_os=claimed_os, claimed_country=claimed_country, rtt_ms=rtt_ms), statuses)
             signals = ClientSignals(
                 user_agent=user_agent, platform=platform, languages=list(languages or []), timezone=timezone,
@@ -176,7 +179,7 @@ class UnifiedRunner:
             timing_score, behaviour_features = self._plane("P4", lambda: behaviour_score(
                 inter_arrival_times, surface_history, surface, pointer_events, touch_events, keystroke_events), statuses)
             identity_score = self._plane("P5", lambda: self._identity_score(
-                network, password, session_id, tls_channel_id), statuses)
+                network, password, session_id, tls_channel_id, latitude, longitude), statuses)
             kinematic_score = self._plane("P6", lambda: self._kinematic_score(
                 signals, pointer_events, touch_events, keystroke_events), statuses)
             if kinematic_score > 0.0:
@@ -197,6 +200,8 @@ class UnifiedRunner:
                 block_hard_gates_only=self.config.block_hard_gates_only,
                 pow_enabled=self.config.adaptive_pow_enabled,
             ).plan_for(decision.risk_score, decision.decision, route=surface), statuses)
+            plan = replace(plan, pow_difficulty=self.pow.difficulty_for(
+                decision.risk_score, float(attack_pressure)))
             return self._finish(start, network, signals, fingerprint, ja4, decision, plan,
                                 surface, session_id, statuses, integrity_reason,
                                 behaviour_features, transport_reasons)
@@ -240,7 +245,8 @@ class UnifiedRunner:
             return min(0.2, network_rep * 0.5 + pop * 0.1)
         return max(0.0, min(1.0, (1.0 - composite) * 0.65 + pop * 0.35))
 
-    def _identity_score(self, network: NetworkIntel, password: str, session_id: str, tls: str) -> float:
+    def _identity_score(self, network: NetworkIntel, password: str, session_id: str, tls: str,
+                        latitude: float = 0.0, longitude: float = 0.0) -> float:
         breach = self.breach_screen.check(password) if password else None
         if breach and breach.breach_found:
             return 0.95
@@ -250,7 +256,26 @@ class UnifiedRunner:
                 return 0.9
             self._session_channels.set(session_id, tls or "unknown", ttl_seconds=3600.0)
             self.session_binder.register_device(device_id=session_id, public_key_hash=(tls or "")[:12])
+            lat = latitude if latitude else network.location.latitude
+            lon = longitude if longitude else network.location.longitude
+            prior_location = self._session_locations.get(session_id)
+            if prior_location:
+                distance_km = self._haversine_km(prior_location[0], prior_location[1], lat, lon)
+                elapsed = max(1.0, time.monotonic() - prior_location[2])
+                if distance_km / (elapsed / 3600.0) > 900.0:
+                    self._session_locations.set(session_id, (lat, lon, time.monotonic()), ttl_seconds=3600.0)
+                    return 0.95
+            self._session_locations.set(session_id, (lat, lon, time.monotonic()), ttl_seconds=3600.0)
         return 0.65 if network.is_datacenter else 0.1
+
+    @staticmethod
+    def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        radius = 6371.0
+        phi1, phi2 = math.radians(lat1), math.radians(lat2)
+        d_phi = math.radians(lat2 - lat1)
+        d_lambda = math.radians(lon2 - lon1)
+        value = math.sin(d_phi / 2.0) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2.0) ** 2
+        return 2.0 * radius * math.asin(min(1.0, math.sqrt(value)))
 
     def _kinematic_score(self, signals: ClientSignals, pointer: Sequence[Mapping[str, float]],
                          touch: Sequence[Mapping[str, float]], keys: Sequence[Mapping[str, float]]) -> float:
@@ -299,7 +324,7 @@ class UnifiedRunner:
                            score=decision.risk_score, family_scores=decision.family_scores,
                            reasons=reasons, evidence=evidence, response={"plan": plan.to_dict()},
                            latency_ms=elapsed)
-        self._plane("P9", lambda: self.telemetry.emit(audit), statuses)
+        audit = self._plane("P9", lambda: self.telemetry.emit(audit), statuses)
         self.governance.record_decision(decision.decision)
         return AssessmentResult(decision.decision, decision.risk_score, audit, plan,
                                 decision.family_scores, reasons, audit.event_id, dict(statuses))
