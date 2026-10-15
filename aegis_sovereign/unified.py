@@ -34,12 +34,14 @@ from .audit_event import AuditEvent
 from .audit_sink import Telemetry
 from .fusion import CalibratedEnsemble
 from .risk_engine import RiskEngine
-from .unified_runner import UnifiedRunner
+from .unified_runner import AsyncUnifiedRunner, AssessmentResult, UnifiedRunner
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
     "UnifiedRunner",
+    "AsyncUnifiedRunner",
+    "AssessmentResult",
     "SecurityConfig",
     "Telemetry",
     "AuditEvent",

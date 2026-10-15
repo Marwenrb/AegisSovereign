@@ -1,0 +1,2 @@
+# AegisSovereign has no mandatory runtime dependencies.
+# Keep this lockfile as the reproducibility contract for dependency scanners.

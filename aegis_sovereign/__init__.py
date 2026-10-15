@@ -76,10 +76,6 @@ from .governance import Governance, Incidents
 from .transport import ja4_from_dict, quic_fingerprint
 from .pow import AegisPoW, PoWChallenge
 from .audit_chain import ChainLink, MerkleAuditChain
-from .state import ReplayNonceCache, ShardedTTLCache, SlidingWindow, prefix_for_ip
-from .client_sdk import ClientSDK, generate_client_sdk
-from .maintenance import AsyncMaintenanceManager, MaintenanceManager
-from .audit_chain import ChainLink, MerkleAuditChain
 from .behavior import (
     SurfaceTransitionGraph,
     behaviour_score,
@@ -134,14 +130,6 @@ __all__ = [
     "PoWChallenge",
     "ChainLink",
     "MerkleAuditChain",
-    "ReplayNonceCache",
-    "ShardedTTLCache",
-    "SlidingWindow",
-    "prefix_for_ip",
-    "ClientSDK",
-    "generate_client_sdk",
-    "MaintenanceManager",
-    "AsyncMaintenanceManager",
     "RiskEngine",
     "CalibratedEnsemble",
     "FamilyEvidence",
@@ -159,8 +147,6 @@ __all__ = [
     "Incidents",
     "BreachedCredentialScreen",
     "SessionBinder",
-    "ChainLink",
-    "MerkleAuditChain",
     "SurfaceTransitionGraph",
     "behaviour_score",
     "dispersion_ratio",

@@ -19,6 +19,8 @@ assert c.database_url.endswith("aegis_sovereign.db"), c.database_url
 print("fail_open threshold:", c.fail_open_threshold)
 print("JA4 TLS:", c.enable_ja4_tls)
 print("challenge TTL:", c.signed_challenge_ttl_seconds)
+print("plane timeout:", c.plane_timeout_ms)
+assert c.pow_min_difficulty < c.pow_max_difficulty
 print("PASS: default config OK")
 
 # Test 2: from dict
@@ -49,5 +51,11 @@ except ValueError:
 red = c.to_dict(redact_secrets=True)
 assert red["secret_key"] == "***REDACTED***", red["secret_key"]
 print("PASS: redaction OK")
+
+# Test 5: fail-closed/fail-open route matrix
+from aegis_sovereign.policy import RoutePolicy
+assert RoutePolicy.for_surface("payout").failure_mode == "FAIL_CLOSED"
+assert RoutePolicy.for_surface("public.read").failure_mode == "FAIL_OPEN_OBSERVE"
+print("PASS: failure policy matrix OK")
 
 print("ALL CONFIG TESTS PASSED")

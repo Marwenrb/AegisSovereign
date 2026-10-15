@@ -10,6 +10,8 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from aegis_sovereign.network_fixtures import ResidentialGeoBackend, DatacenterGeoBackend
 from aegis_sovereign.unified_runner import UnifiedRunner
 from aegis_sovereign.client_challenge import SignedChallenge
+from aegis_sovereign.pow import AegisPoW
+import asyncio
 
 runner = UnifiedRunner(geo_backend=ResidentialGeoBackend())
 
@@ -75,5 +77,32 @@ bad, _ = SignedChallenge.verify(
 )
 assert not bad
 print("PASS: crypto roundtrip")
+
+# Replay protection consumes a valid nonce exactly once.
+replay_token = sc.issue(session_id="replay", tls_channel_id="tls")
+ok_first, _ = sc.verify_token(replay_token.token, session_id="replay", tls_channel_id="tls")
+ok_second, reason_second = sc.verify_token(replay_token.token, session_id="replay", tls_channel_id="tls")
+assert ok_first and not ok_second and reason_second == "replay_detected"
+print("PASS: replay protection")
+
+# Stateless dynamic PoW roundtrip.
+pow_engine = AegisPoW("verify-pow", min_difficulty=1, max_difficulty=2)
+challenge = pow_engine.issue(risk_score=0.8, attack_pressure=0.4, subject="verify")
+solution = AegisPoW.solve(challenge, max_attempts=100000)
+assert pow_engine.verify(challenge.token, solution, subject="verify")[0]
+print("PASS: proof-of-work")
+
+# Async single and batch paths preserve order.
+async def _async_check():
+    one = await runner.assess_request_async(remote_ip="203.0.113.9", surface="public.read")
+    batch = await runner.assess_batch_async([
+        {"remote_ip": "203.0.113.9", "surface": "public.read"},
+        {"remote_ip": "203.0.113.10", "surface": "public.read"},
+    ], concurrency=2)
+    assert one.audit_event.source == "aegis_sovereign"
+    assert len(batch) == 2
+
+asyncio.run(_async_check())
+print("PASS: async and batch runner")
 
 print("OK: unified runner smoke test passed")

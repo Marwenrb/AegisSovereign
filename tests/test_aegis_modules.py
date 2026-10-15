@@ -333,5 +333,31 @@ class TestEdgeServer(unittest.TestCase):
             server.server_close()
 
 
+class TestAsyncAndPolicyRuntime(unittest.TestCase):
+    def test_async_batch_and_sensitive_fallback_policy(self) -> None:
+        from aegis_sovereign.network_fixtures import ResidentialGeoBackend
+        from aegis_sovereign.unified_runner import UnifiedRunner
+
+        runner = UnifiedRunner(geo_backend=ResidentialGeoBackend())
+
+        async def run_check() -> None:
+            result = await runner.assess_request_async(remote_ip="203.0.113.9", surface="public.read")
+            batch = await runner.assess_batch_async([
+                {"remote_ip": "203.0.113.9", "surface": "public.read"},
+                {"remote_ip": "203.0.113.10", "surface": "public.read"},
+            ], concurrency=2)
+            self.assertIn(result.decision, {"allow", "challenge", "block"})
+            self.assertEqual(len(batch), 2)
+
+        asyncio.run(run_check())
+        original = runner.network_intel.assess
+        runner.network_intel.assess = lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("plane down"))
+        closed = runner.assess_request(remote_ip="203.0.113.9", surface="payout")
+        open_result = runner.assess_request(remote_ip="203.0.113.9", surface="public.read")
+        self.assertEqual(closed.decision, "block")
+        self.assertEqual(open_result.decision, "allow")
+        runner.network_intel.assess = original
+
+
 if __name__ == "__main__":
     unittest.main()
