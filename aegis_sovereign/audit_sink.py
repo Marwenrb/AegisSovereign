@@ -131,10 +131,12 @@ class InMemorySink:
         for family, counts in snapshot["family_decisions"].items():
             for decision in ("allow", "challenge", "stepup", "throttle", "block"):
                 lines.append(f'aegis_verdicts_total{{plane="{family}",decision="{decision}"}} {counts[decision]}')
-        for quantile in ("p50", "p95", "p99"):
+        quantiles = {"p50": "0.5", "p95": "0.95", "p99": "0.99"}
+        for quantile, label in quantiles.items():
             value = snapshot.get(f"latency_{quantile}_ms")
             if value is not None:
-                lines.append(f'aegis_latency_ms{{quantile="{quantile[1:] if quantile.startswith("p") else quantile}"}} {value}')
+                lines.append(f'aegis_latency_ms{{quantile="{label}"}} {value}')
+                lines.append(f"aegis_latency_{quantile}_ms {value}")
         return "\n".join(lines) + "\n"
 
 

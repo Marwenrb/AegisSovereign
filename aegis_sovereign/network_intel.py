@@ -13,6 +13,8 @@ import struct
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, Optional
 
+from .state import ShardedTTLCache
+
 logger = logging.getLogger(__name__)
 
 # --- Passive OS fingerprint heuristics --------------------------------------
@@ -133,7 +135,7 @@ class NetworkIntelligence:
 
     def __init__(self, geo: Optional[GeoIP] = None):
         self.geo = geo if geo is not None else GeoIP()
-        self._prefix_seen: Dict[str, set[str]] = {}
+        self._prefix_seen: ShardedTTLCache[set[str]] = ShardedTTLCache(max_entries=10_000, shards=16)
 
     def assess(
         self,
@@ -159,8 +161,9 @@ class NetworkIntelligence:
         asn_class = self.classify_asn(asn, is_dc, is_res, is_vpn)
         is_tor = asn in TOR_EXIT_ASNS
         is_res_proxy = asn_class == "residential_proxy"
-        prior_ips = self._prefix_seen.setdefault(prefix, set())
+        prior_ips = set(self._prefix_seen.get(prefix) or set())
         prior_ips.add(remote_ip)
+        self._prefix_seen.set(prefix, prior_ips, ttl_seconds=900.0)
         rotation = len(prior_ips) >= 4
 
         os_match = self._passive_os_match(claimed_os)

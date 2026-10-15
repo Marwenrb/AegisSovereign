@@ -6,7 +6,7 @@ Engineering Lab: Cristi Labs (https://cristilabs.net)
 
 from __future__ import annotations
 
-__version__ = "3.0.0"
+__version__ = "3.1.0"
 __author__ = "Marouan Rabai"
 __author_email__ = "hello@marwenrabai.com"
 __organization__ = "Cristi Labs"

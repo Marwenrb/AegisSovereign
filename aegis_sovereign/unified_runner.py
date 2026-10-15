@@ -157,6 +157,14 @@ class UnifiedRunner:
             population_score = self.population.score(fingerprint, now)
             fingerprint_count = int(self._fingerprint_counts.get(fingerprint) or 0) + 1
             self._fingerprint_counts.set(fingerprint, fingerprint_count, ttl_seconds=3600.0)
+            rate_key = f"{prefix_for_ip(remote_ip)}|{surface}|{session_id or fingerprint}"
+            rate_window = self._session_windows.get(rate_key)
+            if rate_window is None:
+                duration = 3600.0 if surface in {"payout", "withdrawal", "recovery", "password_reset"} else 60.0
+                rate_window = SlidingWindow[str](window_seconds=duration, max_events=512)
+                self._session_windows.set(rate_key, rate_window, ttl_seconds=duration + 60.0)
+            rate_window.add(surface, now)
+            rate_limit_exceeded = rate_window.snapshot(now).count > self._rate_limit_for(surface)
             coherence = CoherenceEngine().score(signals)
 
             ja4 = self._plane("P2", lambda: ja4_from_dict(
@@ -189,6 +197,9 @@ class UnifiedRunner:
                 network, password, session_id, tls_channel_id, latitude, longitude), statuses)
             if surface in {"auth.login", "signin"} and fingerprint_count >= 5:
                 identity_score = max(identity_score, 0.85)
+            if rate_limit_exceeded:
+                identity_score = max(identity_score, 0.9)
+                behaviour_features["rate_limit"] = 1.0
             kinematic_score = self._plane("P6", lambda: self._kinematic_score(
                 signals, pointer_events, touch_events, keystroke_events), statuses)
             if kinematic_score > 0.0:
@@ -305,6 +316,15 @@ class UnifiedRunner:
             return 0.35 if network.is_datacenter else 0.15
         return 0.55 if network.is_datacenter else 0.05
 
+    def _rate_limit_for(self, surface: str) -> int:
+        if surface in {"auth.login", "signin"}:
+            return self.config.rate_limit_login_per_minute
+        if surface in {"payout", "withdrawal"}:
+            return self.config.rate_limit_payout_per_hour
+        if surface in {"recovery", "password_reset"}:
+            return self.config.rate_limit_recovery_per_hour
+        return self.config.rate_limit_api_create_per_minute
+
     def _finish(self, start: float, network: NetworkIntel, signals: ClientSignals, fingerprint: str,
                 ja4: JA4Hash, decision: Decision, plan: ResponsePlan, surface: str,
                 session_id: str, statuses: Dict[str, str], integrity_reason: str,
@@ -314,6 +334,8 @@ class UnifiedRunner:
         if integrity_reason != "integrity_not_present":
             reasons.append(integrity_reason)
         reasons.extend(transport_reasons)
+        if behaviour_features.get("rate_limit", 0.0) > 0.0:
+            reasons.append("rate_limit")
         evidence = {
             "ip": network.remote_ip,
             "user_agent": signals.user_agent,
@@ -355,6 +377,7 @@ class UnifiedRunner:
         self._session_channels.prune()
         self._session_locations.prune()
         self._fingerprint_counts.prune()
+        self.network_intel._prefix_seen.prune()
 
 
 class AsyncUnifiedRunner(UnifiedRunner):

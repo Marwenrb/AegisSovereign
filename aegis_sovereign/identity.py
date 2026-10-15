@@ -26,6 +26,7 @@ import hashlib
 import hmac
 import logging
 import re
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional
@@ -113,8 +114,10 @@ class BreachedCredentialScreen:
 class SessionBinder:
     """Binds a session to a device-held key to defeat cookie theft."""
 
-    def __init__(self):
+    def __init__(self, max_devices: int = 100_000):
         self._devices: Dict[str, DeviceBinding] = {}
+        self._max_devices = max(1, int(max_devices))
+        self._lock = threading.RLock()
 
     def register_device(self, device_id: str, public_key_hash: str, protocol: str = "dpop") -> DeviceBinding:
         binding = DeviceBinding(
@@ -123,20 +126,28 @@ class SessionBinder:
             bound_at=time.time(),
             protocol=protocol,
         )
-        self._devices[device_id] = binding
+        with self._lock:
+            if device_id not in self._devices and len(self._devices) >= self._max_devices:
+                oldest = next(iter(self._devices), None)
+                if oldest is not None:
+                    del self._devices[oldest]
+            self._devices[device_id] = binding
         return binding
 
     def bind_session(self, session_id: str, device_id: str) -> bool:
-        binding = self._devices.get(device_id)
+        with self._lock:
+            binding = self._devices.get(device_id)
+            if binding is not None:
+                binding.last_used_at = time.time()
         if binding is None or not binding.active:
             return False
-        binding.last_used_at = time.time()
         # In production, persist this binding server-side; here we return True.
         return True
 
     def active_binding(self, session_id: str) -> Optional[DeviceBinding]:
         # Proxy: return the last registered binding for the session.
-        for b in self._devices.values():
-            if b.active:
-                return b
+        with self._lock:
+            for b in self._devices.values():
+                if b.active:
+                    return b
         return None
