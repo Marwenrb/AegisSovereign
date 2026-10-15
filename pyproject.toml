@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aegis-sovereign"
+version = "3.0.0"
+description = "AegisSovereign - Sovereign-Grade 9-Plane Anti-Automation & Fraud Defense Engine"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Marouan Rabai", email = "hello@marwenrabai.com" }]
+maintainers = [{ name = "Cristi Labs", email = "hello@cristilabs.net" }]
+keywords = ["security", "anti-bot", "fraud", "ja4", "zero-trust"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Security",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://cristilabs.net"
+Documentation = "https://cristilabs.net"
+Author = "https://marwenrabai.com"
+Repository = "https://github.com/cristilabs/aegis-sovereign"
+
+[project.scripts]
+aegis-sovereign = "aegis_sovereign.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["aegis_sovereign*"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
