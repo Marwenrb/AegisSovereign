@@ -11,7 +11,7 @@ import logging
 import math
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 from .audit_event import AuditEvent
@@ -99,6 +99,8 @@ class UnifiedRunner:
             max_entries=self.config.replay_cache_entries)
         self._session_locations: ShardedTTLCache[tuple[float, float, float]] = ShardedTTLCache(
             max_entries=self.config.replay_cache_entries)
+        self._fingerprint_counts: ShardedTTLCache[int] = ShardedTTLCache(
+            max_entries=self.config.replay_cache_entries)
         self._breakers: Dict[str, CircuitBreaker[Any]] = {
             plane: CircuitBreaker(plane, self.config.circuit_failure_threshold,
                                   self.config.circuit_reset_seconds)
@@ -140,6 +142,9 @@ class UnifiedRunner:
         try:
             network = self._plane("P1", lambda: self.network_intel.assess(
                 remote_ip, claimed_os=claimed_os, claimed_country=claimed_country, rtt_ms=rtt_ms), statuses)
+            if timezone and network.location.timezone and timezone != network.location.timezone:
+                network.risk_features["timezone_mismatch"] = 1.0
+                network.reputation_score = min(1.0, network.reputation_score + 0.12)
             signals = ClientSignals(
                 user_agent=user_agent, platform=platform, languages=list(languages or []), timezone=timezone,
                 screen_geometry=screen_geometry, fonts=list(fonts or []), gpu_renderers=list(gpu_renderers or []),
@@ -150,6 +155,8 @@ class UnifiedRunner:
             now = time.monotonic()
             self.population.register(fingerprint, now)
             population_score = self.population.score(fingerprint, now)
+            fingerprint_count = int(self._fingerprint_counts.get(fingerprint) or 0) + 1
+            self._fingerprint_counts.set(fingerprint, fingerprint_count, ttl_seconds=3600.0)
             coherence = CoherenceEngine().score(signals)
 
             ja4 = self._plane("P2", lambda: ja4_from_dict(
@@ -180,6 +187,8 @@ class UnifiedRunner:
                 inter_arrival_times, surface_history, surface, pointer_events, touch_events, keystroke_events), statuses)
             identity_score = self._plane("P5", lambda: self._identity_score(
                 network, password, session_id, tls_channel_id, latitude, longitude), statuses)
+            if surface in {"auth.login", "signin"} and fingerprint_count >= 5:
+                identity_score = max(identity_score, 0.85)
             kinematic_score = self._plane("P6", lambda: self._kinematic_score(
                 signals, pointer_events, touch_events, keystroke_events), statuses)
             if kinematic_score > 0.0:
@@ -199,14 +208,13 @@ class UnifiedRunner:
                 deception_threshold=self.config.deception_confidence_threshold,
                 block_hard_gates_only=self.config.block_hard_gates_only,
                 pow_enabled=self.config.adaptive_pow_enabled,
-            ).plan_for(decision.risk_score, decision.decision, route=surface), statuses)
-            plan = replace(plan, pow_difficulty=self.pow.difficulty_for(
-                decision.risk_score, float(attack_pressure)))
+            ).plan_for(decision.risk_score, decision.decision, route=surface,
+                       pow_difficulty=self.pow.difficulty_for(decision.risk_score, float(attack_pressure))), statuses)
             return self._finish(start, network, signals, fingerprint, ja4, decision, plan,
                                 surface, session_id, statuses, integrity_reason,
                                 behaviour_features, transport_reasons)
         except Exception as exc:
-            logger.exception("Aegis plane failure")
+            logger.warning("Aegis plane failure on %s: %s", surface, exc)
             return self._failure_result(start, surface, session_id, route_policy, statuses, str(exc))
 
     async def assess_request_async(self, **kwargs: Any) -> AssessmentResult:
@@ -346,6 +354,7 @@ class UnifiedRunner:
         self._session_windows.prune()
         self._session_channels.prune()
         self._session_locations.prune()
+        self._fingerprint_counts.prune()
 
 
 class AsyncUnifiedRunner(UnifiedRunner):

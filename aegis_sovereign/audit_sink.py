@@ -6,7 +6,6 @@ Engineering Lab: Cristi Labs (https://cristilabs.net)
 
 from __future__ import annotations
 
-import copy
 import hashlib
 import logging
 import statistics
@@ -176,26 +175,29 @@ class Telemetry:
     def emit(self, event: AuditEvent) -> AuditEvent:
         safe_evidence = event.evidence
         if self._ctx is not None:
-            safe = copy.deepcopy(event.evidence)
+            safe = dict(event.evidence)
             for fname in ("ip", "user_agent", "fingerprint", "token"):
                 val = safe.get(fname)
                 if val:
                     safe[fname] = self._ctx.hash(str(val))
             safe_evidence = safe
-        chain_link = self.audit_chain.append(event.event_id, event.to_dict())
+        chain_link = self.audit_chain.append(event.event_id, {
+            "event_id": event.event_id,
+            "surface": event.surface,
+            "decision": event.decision,
+            "score": event.score,
+            "reasons": event.reasons,
+        })
         enriched = replace(event, entropy_bits=self._entropy, evidence=safe_evidence,
                            previous_event_hash=chain_link.previous_hash,
                            event_hash=chain_link.event_hash)
         self._sink.emit(enriched)
-        self._log.info(
-            "AEGIS:%s|actor:%s|surface:%s|decision:%s|score:%s|reasons:%s",
-            enriched.event_id,
-            enriched.actor,
-            enriched.surface,
-            enriched.decision,
-            enriched.score,
-            ",".join(enriched.reasons) or "-",
-        )
+        if self._log.isEnabledFor(logging.INFO):
+            self._log.info(
+                "AEGIS:%s|actor:%s|surface:%s|decision:%s|score:%s|reasons:%s",
+                enriched.event_id, enriched.actor, enriched.surface, enriched.decision,
+                enriched.score, ",".join(enriched.reasons) or "-",
+            )
         return enriched
 
     def snapshot(self) -> Dict[str, Any]:
@@ -203,6 +205,7 @@ class Telemetry:
 
     def clear(self) -> None:
         self._sink.clear()
+        self.audit_chain.clear()
 
     def export_openmetrics(self) -> str:
         exporter = getattr(self._sink, "openmetrics", None)

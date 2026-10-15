@@ -1,5 +1,18 @@
 # Changelog — AegisSovereign
 
+## 3.1.0 — 2026-10-15 (AEGIS-SOVEREIGN-2026)
+
+- Added async and bounded-concurrency batch assessment with per-plane circuit
+  breakers and route-aware fail-open/fail-closed fallbacks.
+- Added HKDF-scoped HMAC challenges with replay nonce cache, adaptive stateless
+  AegisPoW, kinematics/entropy features, and impossible-travel/session-split
+  signals.
+- Added Merkle audit links, rotating pseudonymous telemetry, OpenMetrics,
+  maintenance managers, ASGI/WSGI/Django integrations, universal edge server,
+  client SDK generator, and expanded operational CLI.
+- Added reproducible `.python-version`, lockfile, Dockerfile, Makefile,
+  architecture and security documentation.
+
 ## 3.0.0 — 2026-10-15 (AEGIS-SOVEREIGN-2026)
 
 - Hard rename: `auto_register_security` → `aegis_sovereign`; `SOPHIA_REF` →

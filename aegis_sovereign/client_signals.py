@@ -114,7 +114,7 @@ class CoherenceEngine:
     def _ua_platform_agree(s: ClientSignals) -> float:
         ua = (s.user_agent or "").lower()
         plat = (s.platform or "").lower()
-        if "webdriver" in ua or s.webdriver:
+        if "webdriver" in ua or "headless" in ua or "cdp" in ua or s.webdriver:
             return 0.0
         if not plat:
             return 0.5
@@ -189,6 +189,10 @@ class CoherenceEngine:
             return 0.5
         if any(r in {"swiftshader", "llvmpipe", "softpipe"} for r in rs):
             return 0.0
+        ua_platform = f"{s.user_agent} {s.platform}".lower()
+        if any("apple m3" in renderer or "m3 gpu" in renderer for renderer in rs) and (
+                "linux" in ua_platform or "windows nt" in ua_platform):
+            return 0.0
         if any("angle" in r or "metal" in r for r in rs):
             return 1.0
         return 0.6
@@ -244,4 +248,3 @@ class PopulationRarity:
             for k, _ in ordered[: len(self._freq) - self.max_entries]:
                 self._freq.pop(k, None)
                 self._last_seen.pop(k, None)
-

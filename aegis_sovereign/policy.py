@@ -43,7 +43,7 @@ ROUTE_LOSS_USD: Dict[str, float] = {
     "api_key_rotate": 1.00,
 }
 
-FAIL_CLOSED_PATTERNS = ("payout", "auth.login", "admin.", "signin", "withdrawal", "recovery")
+FAIL_CLOSED_PATTERNS = ("payout", "auth.login", "admin", "signin", "withdrawal", "recovery")
 
 # Default loss when the route is unknown (a safe, moderate default).
 DEFAULT_ROUTE_LOSS_USD = 5.00

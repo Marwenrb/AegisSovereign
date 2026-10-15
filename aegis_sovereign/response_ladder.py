@@ -44,7 +44,8 @@ class ResponseLadder:
         self.block_hard_gates_only = block_hard_gates_only
         self.pow_enabled = pow_enabled
 
-    def plan_for(self, score: float, decided: str, *, route: str = "") -> ResponsePlan:
+    def plan_for(self, score: float, decided: str, *, route: str = "",
+                 pow_difficulty: int = 0) -> ResponsePlan:
         steps: List[LadderStep] = []
         reason_codes: List[str] = []
         pow_difficulty = 0
@@ -82,7 +83,7 @@ class ResponseLadder:
             reason_codes.append("challenge")
 
         if self.pow_enabled and score > 0.5:
-            difficulty = min(
+            difficulty = int(pow_difficulty) if pow_difficulty > 0 else min(
                 POLY_MAX_DIFFICULTY,
                 max(POLY_MIN_DIFFICULTY, int(POLY_MIN_DIFFICULTY * (score * POLY_SCALE_FACTOR))),
             )
