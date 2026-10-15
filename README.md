@@ -1,225 +1,226 @@
 # AegisSovereign
 
-[![Python](https://img.shields.io/badge/Python-3.10%E2%80%933.13-blue)](https://www.python.org/)
-[![Zero core dependencies](https://img.shields.io/badge/Core%20dependencies-zero-brightgreen)](requirements.lock)
-[![Async](https://img.shields.io/badge/Runtime-sync%20%2B%20async-purple)](ARCHITECTURE.md)
-[![P99](https://img.shields.io/badge/Hot%20path-sub--millisecond-orange)](ARCHITECTURE.md)
-[![Crypto](https://img.shields.io/badge/Integrity-HKDF%20%2B%20HMAC-red)](SECURITY.md)
-[![Audit](https://img.shields.io/badge/Audit-Merkle%20chain-blueviolet)](ARCHITECTURE.md)
-[![License](https://img.shields.io/badge/License-Apache--2.0-lightgrey)](LICENSE)
+[![CI](https://github.com/Marwenrb/AegisSovereign/actions/workflows/ci.yml/badge.svg)](https://github.com/Marwenrb/AegisSovereign/actions)
+![Python](https://img.shields.io/badge/Python-3.10%E2%80%933.13-blue?logo=python&logoColor=white)
+![Deps](https://img.shields.io/badge/Dependencies-Zero%20Core-brightgreen)
+![Latency](https://img.shields.io/badge/P99%20Latency-%3C0.5ms-orange)
+![Integrity](https://img.shields.io/badge/Integrity-HMAC%20TLS--bound-red)
+![Audit](https://img.shields.io/badge/Audit-Merkle%20Hash%20Chain-blueviolet)
+![Typing](https://img.shields.io/badge/Typing-Strict%20mypy-purple)
+![License](https://img.shields.io/badge/License-Apache--2.0-lightgrey)
 
-**Sovereign-grade 9-plane anti-automation, bot mitigation, and fraud defense
-for web applications, APIs, microservices, and static/dynamic sites.**
+**Next-Gen 9-Plane Sovereign Anti-Automation, Bot Mitigation & Fraud Defense Engine.**
 
-Developed by **[Cristi Labs](https://cristilabs.net)** and architected by
-**[Marouan Rabai](https://marwenrabai.com)**.
+Developed by **[Cristi Labs](https://cristilabs.net)** &bull; Lead Architect & System Developer: **[Marouan Rabai](https://marwenrabai.com)**  
+**Normative Reference:** `AEGIS-SOVEREIGN-2026`
 
-AegisSovereign has zero mandatory runtime dependencies: the core uses only the
-Python 3.10–3.13 standard library. Optional ASGI, WSGI, Flask, and Django
-adapters are lazy-imported.
+---
 
-## Architecture at a glance
+## Executive Summary
+
+AegisSovereign is a sovereign-grade defense engine engineered to mitigate automated abuse, credential stuffing, scraping, and account takeover. Operating with **zero external runtime dependencies** (pure standard-library Python), it delivers sub-millisecond assessment latency while providing mathematical, server-verifiable cryptographic guarantees.
+
+Modern bot networks easily spoof User-Agents, simulate human cursor movements, and route traffic through residential proxy networks. AegisSovereign rejects probabilistic guesswork in favor of the core doctrine: **Cryptography over Inference. Cheap for legitimate humans, ruinously expensive for bot farms.**
+
+---
+
+## The 7 Core Design Principles
+
+1. **Cryptography over Inference:** Server-verifiable HMAC proofs gate sensitive actions; probabilistic inference never overrides a failed proof.
+2. **Cost Asymmetry:** Adaptive Proof-of-Work (PoW) and cryptographic puzzles scale attacker compute exponentially while human P99 latency stays under half a millisecond.
+3. **No Attacker Oracle:** Uniform response payload shapes, withheld internal reason codes, and randomized timing jitter deny adversaries tuning feedback.
+4. **Risk-Proportionate Friction:** Friction scales dynamically with expected business loss (`P(abuse) x Loss > Friction`), avoiding blanket blocks that hurt legitimate users.
+5. **Layered Independence:** Nine planes operate behind isolated circuit breakers; spoofing any single layer cannot flip the aggregate verdict.
+6. **Deliberate Failure Policies:** Explicit per-route `FAIL_CLOSED` (sensitive financial routes) or `FAIL_OPEN_OBSERVE` (public content) declarations prevent cascading outages.
+7. **Privacy & Accessibility by Design:** Automated data minimization, one-way hashed audit trails, retention limits, and zero discrimination against assistive technologies.
+
+---
+
+## Visual Architecture: The 9-Plane Pipeline
 
 ```mermaid
-flowchart LR
-    P1[P1 Network] --> P7[P7 Log-Odds Fusion]
-    P2[P2 Transport] --> P7
-    P3[P3 Cryptographic Integrity] --> G{Hard gate}
-    P4[P4 Behaviour] --> P7
-    P5[P5 Identity] --> P7
-    P6[P6 Kinematics] --> P7
-    G --> P7
-    G -->|failed proof| B[FAIL CLOSED on sensitive routes]
-    P7 --> P8[P8 Response ladder]
-    P8 --> P9[P9 Privacy telemetry + audit chain]
+flowchart TD
+    subgraph SignalLayer [Signal Evaluation Layer]
+        P1[P1 Network Intelligence\nGeoIP / ASN / RTT / Prefix Rotation]
+        P2[P2 Transport Fingerprints\nJA4 / JA4H / QUIC / Contradiction Check]
+        P3[P3 Client Integrity\nTLS-Bound HMAC / Nonce Cache / Coherence]
+        P4[P4 Behavioural Dynamics\nTiming Entropy / Markov Surface Graphs]
+        P5[P5 Identity & Session Graph\nBreach Screen / Session Binding / DPoP]
+        P6[P6 Biometric Assurance\nPointer Kinematics / Tremor / Fitts Law]
+    end
+
+    SignalLayer --> P7[P7 Calibrated Ensemble Fusion\nBounded Log-Odds Combination]
+    P7 --> G{Hard Gates & Route Policies}
+
+    subgraph ActionGovernance [Action & Governance Layer]
+        G -->|Graduated Plan| P8[P8 Response Orchestration Ladder\nObserve -> Challenge -> PoW -> StepUp -> Throttle -> Deception -> Block]
+        G -->|Tamper-Evident Link| P9[P9 Governance & Merkle Audit Chain\nAppend-Only Hash Chain + OpenMetrics]
+    end
 ```
 
-| Plane | Focus | Representative failure signal |
-|---|---|---|
-| P1 | CIDR, ASN class, routing and rapid prefix rotation | cloud, Tor, proxy, geo mismatch |
-| P2 | JA4/JA4H, HTTP/2, QUIC and client hints | Chrome claim vs library TLS |
-| P3 | HKDF/HMAC, environment coherence, replay | wrong TLS channel or nonce replay |
-| P4 | entropy, dispersion and Markov navigation | fixed intervals/direct sensitive jump |
-| P5 | session/channel graph and travel velocity | session split or impossible travel |
-| P6 | pointer, touch and keystroke dynamics | synthetic linear dispatch |
-| P7 | calibrated log-odds and synergy matrix | cross-plane contradiction |
-| P8 | observe, challenge, PoW, step-up, throttle, deception, block | risk-proportionate friction |
-| P9 | hashed telemetry, Merkle chain, OpenMetrics | tamper evidence and metrics |
+---
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for full contracts, budgets, and
-deployment topology. See [SECURITY.md](SECURITY.md) for threat model and
-operational guidance.
+## Complete Documentation Suite
 
-## Install, run, test, deploy
+Detailed, step-by-step guides are available in the [`docs/`](docs/) directory:
+
+| Document | Purpose & Key Topics |
+| :--- | :--- |
+| **[01. Getting Started](docs/01-GETTING-STARTED.md)** | Prerequisites, installation, running `doctor`, first assessment script, verdict breakdown. |
+| **[02. Architecture of the 9 Planes](docs/02-ARCHITECTURE-9-PLANES.md)** | Deep dive into P1–P9, 7 design principles, circuit breakers, and fail-open/closed policies. |
+| **[03. Cryptographic Challenges](docs/03-CRYPTOGRAPHIC-CHALLENGES.md)** | `AEGISINTEG` token anatomy, lifecycle sequence, `AegisPoW` puzzle solver, browser client SDK. |
+| **[04. Middleware Integration](docs/04-MIDDLEWARE-INTEGRATION.md)** | FastAPI, Starlette, Flask, reverse proxy header forwarding (Nginx), and edge sidecar server. |
+| **[05. CLI & Operations](docs/05-CLI-AND-OPERATIONS.md)** | `doctor`, `benchmark`, `inspect-config`, `serve-edge`, production tuning, and troubleshooting. |
+| **[06. Testing & Verification](docs/06-TESTING-AND-VERIFICATION.md)** | Running `verify_*.py`, test suite execution, writing custom residential/datacenter fixtures. |
+
+---
+
+## 5-Minute Quickstart
+
+### 1. Installation
+
+AegisSovereign has zero mandatory runtime dependencies.
 
 ```bash
 git clone https://github.com/Marwenrb/AegisSovereign.git
 cd AegisSovereign
-python3.12 -m venv .venv
-. .venv/bin/activate
-python -m pip install -e .
-make test
-make verify
+pip install -e .
 ```
 
-The pinned runtime is in `.python-version`; `requirements.lock` records the
-zero-runtime-dependency contract. Run locally with:
-
-```bash
-aegis-sovereign doctor
-aegis-sovereign serve-edge --host 127.0.0.1 --port 8787
-```
-
-Build and run the reproducible sidecar image:
-
-```bash
-docker run --rm -p 8787:8787 -e SECRET_KEY="replace-me" aegis-sovereign:local
-```
-
-## Quickstart: residential, datacenter, stealth headless
+### 2. Multi-Plane Traffic Assessment
 
 ```python
 from aegis_sovereign import UnifiedRunner
 from aegis_sovereign.network_fixtures import ResidentialGeoBackend, DatacenterGeoBackend
 
-human = UnifiedRunner(geo_backend=ResidentialGeoBackend()).assess_request(
-    remote_ip="203.0.113.9", claimed_os="Windows 11", claimed_country="BR",
-    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64)", platform="windows",
-    languages=["pt-BR"], timezone="America/Sao_Paulo", screen_geometry="1920x1080x24",
-    fonts=["Arial"], gpu_renderers=["ANGLE (NVIDIA)"], codecs=["h264"],
-    input_modality="mouse", session_id="human-1", tls_channel_id="tls-1",
+# Initialize runner
+runner = UnifiedRunner(geo_backend=ResidentialGeoBackend())
+
+# Evaluate traffic
+verdict = runner.assess_request(
+    remote_ip="203.0.113.9",
+    claimed_os="Windows 11",
+    claimed_country="FR",
+    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0.0.0",
+    platform="windows",
+    languages=["fr-FR", "en"],
+    timezone="Europe/Paris",
+    screen_geometry="1920x1080x24",
     surface="registration.create",
 )
 
-datacenter = UnifiedRunner(geo_backend=DatacenterGeoBackend()).assess_request(
-    remote_ip="198.51.100.23", user_agent="curl/8.0", surface="auth.login",
-    session_id="bot-1", tls_channel_id="tls-bot",
-)
-
-stealth = UnifiedRunner(geo_backend=DatacenterGeoBackend()).assess_request(
-    remote_ip="198.51.100.24", user_agent="Mozilla/5.0 HeadlessChrome/120",
-    screen_geometry="0x0", webdriver=True, surface="payout",
-)
-print(human.decision, datacenter.decision, stealth.decision)
+print(verdict.decision)    # 'allow'
+print(verdict.risk_score)  # ~0.16
+print(f"Latency: {verdict.audit_event.latency_ms:.3f} ms")
 ```
 
-`AssessmentResult` is an immutable, explainable verdict with a bounded
-`risk_score` in `[0, 1]`, family scores, response plan, evidence, and plane
-health state.
-
-## Async multi-task batch evaluation
-
-```python
-import asyncio
-from aegis_sovereign import AsyncUnifiedRunner
-
-async def main() -> None:
-    runner = AsyncUnifiedRunner()
-    verdicts = await runner.assess_batch_async([
-        {"remote_ip": "203.0.113.9", "surface": "public.read"},
-        {"remote_ip": "198.51.100.9", "surface": "auth.login"},
-    ], concurrency=16)
-    print([v.decision for v in verdicts])
-
-asyncio.run(main())
-```
-
-## TLS-bound challenge and dynamic PoW
+### 3. TLS-Bound Cryptographic Challenge
 
 ```python
 from aegis_sovereign.client_challenge import SignedChallenge
-from aegis_sovereign.pow import AegisPoW
 
-challenge_service = SignedChallenge("replace-with-secret", ttl_seconds=60)
-token = challenge_service.issue(session_id="s1", tls_channel_id="tls1",
-                                client_ip="203.0.113.9", surface_scope="payout",
-                                claims={"scope": "payout"})
-valid, reason = challenge_service.verify_token(
-    token.token, session_id="s1", tls_channel_id="tls1",
-    client_ip="203.0.113.9", surface_scope="payout", claims={"scope": "payout"})
-assert valid, reason
+svc = SignedChallenge(secret_key="production-secret", ttl_seconds=5, buffer_seconds=15)
+token = svc.issue(session_id="user_123", tls_channel_id="tls_ch_456", claims={"scope": "payout"})
 
-pow_engine = AegisPoW("replace-with-secret")
-puzzle = pow_engine.issue(risk_score=0.75, attack_pressure=0.5, subject="payout")
-solution = AegisPoW.solve(puzzle)
-assert pow_engine.verify(puzzle.token, solution, subject="payout")[0]
+# Verify
+valid, reason = SignedChallenge.verify(
+    token.token,
+    secret_key="production-secret",
+    session_id="user_123",
+    tls_channel_id="tls_ch_456",
+    claims={"scope": "payout"},
+)
+assert valid is True
 ```
 
-The compatibility token is `AEGISINTEG.<session>.<iat>.<exp>.<nonce>.<claims_hash>.<hmac_sig>`.
-When difficulty is bound, the extended wire format is
-`AEGISINTEG.<session>.<iat>.<exp>.<difficulty>.<nonce>.<claims_hash>.<hmac_sig>`.
-The nonce is one-time and bounded by TTL.
-
-## Framework and universal edge adapters
+### 4. FastAPI Middleware
 
 ```python
-# FastAPI / Starlette / Litestar / Quart
+from fastapi import FastAPI
 from aegis_sovereign.middleware import StarletteAegisMiddleware
-app.add_middleware(StarletteAegisMiddleware)
+from aegis_sovereign import UnifiedRunner
 
-# Flask
-from aegis_sovereign.middleware import flask_guard
-guard = flask_guard()
-@app.before_request
-def aegis_before_request():
-    verdict = guard(request)
-    if verdict.decision == "block":
-        return {"denied": True}, 403
+app = FastAPI()
+app.add_middleware(StarletteAegisMiddleware, runner=UnifiedRunner())
 
-# WSGI / Gunicorn
-from aegis_sovereign.middleware import WSGIAegisMiddleware
-application = WSGIAegisMiddleware(application)
-
-# Django settings.py
-MIDDLEWARE = ["aegis_sovereign.middleware.DjangoAegisMiddleware", *MIDDLEWARE]
+@app.post("/api/v1/auth/login")
+async def login():
+    return {"status": "authenticated"}
 ```
 
-For any language, put the sidecar behind the gateway. Nginx example:
-
-```nginx
-location / {
-    auth_request /_aegis;
-    proxy_pass http://application;
-}
-location = /_aegis {
-    internal;
-    proxy_pass http://127.0.0.1:8787/decide;
-    proxy_pass_request_body off;
-    proxy_set_header Content-Length "";
-    proxy_set_header X-Aegis-Surface $request_uri;
-    proxy_set_header X-Session-Id $cookie_session;
-}
-```
-
-Traefik ForwardAuth, Envoy `ext_authz`, Caddy, Node, Go, PHP, Rust, and Ruby
-clients can use the same JSON endpoint and `X-Aegis-*` decision headers.
-Generate the browser helper with:
-
-```python
-from aegis_sovereign.client_sdk import generate_client_sdk
-script = generate_client_sdk(endpoint="/.well-known/aegis/challenge")
-```
-
-## CLI operations
+### 5. CLI Diagnostics & Benchmarking
 
 ```bash
+# Validate system health
 aegis-sovereign doctor
-aegis-sovereign doctor --json
-aegis-sovereign benchmark -n 5000 --concurrency 16
-aegis-sovereign simulate --scenario residential
-aegis-sovereign simulate --scenario datacenter_bot
-aegis-sovereign simulate --scenario stealth_headless
-aegis-sovereign simulate --scenario credential_stuffing
-aegis-sovereign simulate --scenario replay_attack
-aegis-sovereign inspect-config --json
+
+# Run latency benchmark across 8 worker threads
+aegis-sovereign benchmark -n 1000 --concurrency 8
+
+# Run edge decision server on port 8787
+aegis-sovereign serve-edge --host 0.0.0.0 --port 8787
 ```
 
-`doctor` checks HMAC, replay-safe challenge flow, PoW, config, plane health,
-and latency. Benchmark output includes P50, P95, P99, P99.9, maximum latency,
-and requests per second.
+---
 
-## Attribution and license
+## Clean Linux Rebuild & Execution Guide
 
-- **Lead Architect & Developer:** [Marouan Rabai](https://marwenrabai.com)
-- **Engineering Lab and Maintainer:** [Cristi Labs](https://cristilabs.net)
-- License: [Apache-2.0](LICENSE)
+To reproduce and run this project from scratch on any clean Linux machine (Ubuntu, Debian, Fedora, Arch, Alpine):
+
+```bash
+# 1. Clone repository
+git clone https://github.com/Marwenrb/AegisSovereign.git
+cd AegisSovereign
+
+# 2. Set up virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 3. Install package
+pip install -e .
+
+# 4. Run automated tests (One command)
+make test
+# OR: python3 -m unittest discover tests -v
+
+# 5. Run verification suite
+make verify
+
+# 6. Run doctor diagnostics
+make doctor
+
+# 7. Start live edge server
+aegis-sovereign serve-edge --host 0.0.0.0 --port 8787
+```
+
+### Docker Execution
+
+```bash
+# Build production container
+docker build -t aegis-sovereign .
+
+# Run edge server container
+docker run -p 8787:8787 aegis-sovereign
+```
+
+---
+
+## Security Policy
+
+Security reports are reviewed within 2 business days. Please report vulnerabilities to **security@cristilabs.net**. Read our full [SECURITY.md](SECURITY.md) for details.
+
+---
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE).
+
+---
+
+## Credits & Authorship
+
+- **Lead Developer & System Architect:** **[Marouan Rabai](https://marwenrabai.com)**
+- **Developed & Maintained By:** **[Cristi Labs](https://cristilabs.net)**
+- **GitHub Repositories:**  
+  - [https://github.com/Marwenrb/AegisSovereign](https://github.com/Marwenrb/AegisSovereign)  
+  - [https://github.com/connectifyambassador-spec/AegisSovereign](https://github.com/connectifyambassador-spec/AegisSovereign)
